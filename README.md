@@ -1,5 +1,9 @@
 # Playhead 🎹 — a real piano in Figma
 
+<a href="docs/media/playhead-wide.mp4"><img src="docs/media/demo.gif" alt="Playhead being played: notes rise as colourful trails above a piano keyboard" width="100%"></a>
+
+<p align="center"><a href="docs/media/playhead-wide.mp4"><b>▶ Watch with sound</b></a> · <a href="https://ribbon-game-22428059.figma.site"><b>Play it now</b></a> · <a href="https://www.figma.com/@heyizaias">Figma Community</a></p>
+
 A sampled grand piano you play with your computer keyboard, right inside Figma.
 Learn songs with falling notes, beat the **Daily Tune**, record a take and share it as a link.
 Built as a **Figma Make** app and posted as a Community **riff**, so anyone can play it live and remix it.
@@ -45,6 +49,7 @@ src/
     share.ts / streak.ts / samples.ts
   App.tsx          Screens and wiring
   styles.css       Design tokens and all styles
+docs/media/        README demo (GIF + MP4 with sound) and the Community cover
 .figma/make/       Scripts Figma Make uses to install, preview and publish
 tools/prototype-latency-spike/   Dev plugin that tests a no-code prototype piano (see its README)
 ```
