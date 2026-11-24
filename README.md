@@ -4,7 +4,7 @@ A sampled grand piano you play with your computer keyboard, right inside Figma.
 Learn songs with falling notes, beat the **Daily Tune**, record a take and share it as a link.
 Built as a **Figma Make** app and posted as a Community **riff**, so anyone can play it live and remix it.
 
-**Live in Figma Make:** https://www.figma.com/make/2HV8LIbEX31C9yfy5qb36j
+**Play it:** https://ribbon-game-22428059.figma.site · **Figma Community:** https://www.figma.com/@heyizaias (riff + remixable Make file)
 
 | | |
 |---|---|
