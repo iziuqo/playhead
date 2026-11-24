@@ -249,7 +249,7 @@ export function App() {
           <span><kbd>Space</kbd> sustain</span>
           {mode === 'play' && <span><kbd>R</kbd> record</span>}
           {!piano.ready && <span className="hints__status">Loading piano…</span>}
-          <Credit onGreet={() => piano.chime()} />
+          <Credit onNote={(midi) => piano.chime([midi])} />
         </footer>
       </main>
     </div>

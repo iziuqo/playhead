@@ -43,7 +43,7 @@ src/
     Brand.tsx      Logo: a mini piano whose playhead follows the notes you play
     FocusCue.tsx   Pill that asks for a click when the page can't hear the keyboard
     useKeyboardFocus.ts  Auto-focus + focus detection (Figma runs the app in an iframe)
-    Credit.tsx     "made by" signature with its hover micro-interaction
+    Credit.tsx     "made by · Hire me" signature: hover opens a tiny chat that types (and plays) a message
     Stage.tsx      The <canvas> above the keys: rising trails and falling notes
     layout.ts      Key geometry shared by Keyboard and Stage
     share.ts / streak.ts / samples.ts

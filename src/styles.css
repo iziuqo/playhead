@@ -265,6 +265,7 @@ kbd {
    Stagger comes from --i (letter index) set inline by Credit.tsx. */
 .credit {
   --stagger: 24ms;
+  position: relative;
   margin-left: auto;
   display: inline-flex; align-items: baseline; gap: 5px;
   padding: 4px 10px; border-radius: 999px;
@@ -273,7 +274,7 @@ kbd {
 }
 .hints__status + .credit { margin-left: 16px; }
 .credit:hover, .credit:focus-visible { background: rgba(255, 255, 255, 0.05); }
-.credit:active { transform: scale(0.96); }
+.credit:active { transform: scale(0.97); }
 .credit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .credit__by { opacity: 0.7; }
@@ -290,10 +291,6 @@ kbd {
   animation-delay: calc(900ms + var(--i) * var(--stagger));
   transition: color 300ms var(--ease-out) calc(var(--i) * var(--stagger));
 }
-.credit__arrow {
-  display: inline-block; opacity: 0; transform: translate(-4px, 3px);
-  transition: opacity 200ms var(--ease-out), transform 320ms var(--ease-out);
-}
 
 .credit:is(:hover, :focus-visible) .credit__char {
   color: var(--note);
@@ -301,7 +298,68 @@ kbd {
   animation-delay: calc(var(--i) * var(--stagger));
 }
 .credit:is(:hover, :focus-visible) .credit__name::after { transform: scaleX(1); }
-.credit:is(:hover, :focus-visible) .credit__arrow { opacity: 1; transform: translate(0, 0); color: var(--accent); }
+
+/* ---------- Hire me chip + chat bubble (part of the credit) ---------- */
+.hire {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; align-self: center;
+  margin-left: 4px; padding: 3px 9px 3px 7px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: #7ee2b0;
+  background: rgba(64, 214, 140, 0.1); box-shadow: inset 0 0 0 1px rgba(64, 214, 140, 0.22);
+  transition: background-color 240ms var(--ease-out), color 240ms;
+}
+.hire::before { /* a soft shine that sweeps across on hover */
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(100deg, transparent 40%, rgba(255, 255, 255, 0.24) 50%, transparent 60%) 150% 0 / 250% 100% no-repeat;
+}
+.credit:is(:hover, :focus-visible) .hire { background: rgba(64, 214, 140, 0.18); color: #a6f0cb; }
+.credit:is(:hover, :focus-visible) .hire::before { background-position: -50% 0; transition: background-position 800ms var(--ease-out); }
+.hire__dot { position: relative; width: 6px; height: 6px; border-radius: 50%; background: #40d68c; }
+.hire__dot::after { /* "online" ping */
+  content: ''; position: absolute; inset: 0; border-radius: 50%; background: #40d68c;
+  animation: hire-ping 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+.hire__badge {
+  position: absolute; top: -1px; right: -1px; display: grid; place-items: center;
+  min-width: 13px; height: 13px; padding: 0 3px; border-radius: 999px;
+  font-size: 9px; font-weight: 700; color: var(--accent-ink); background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 12px rgba(255, 181, 71, 0.6);
+  animation: badge-pop 520ms var(--ease-out) both;
+}
+.hire:has(.hire__badge) { padding-right: 15px; }
+
+.chat {
+  position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 6; pointer-events: none;
+  display: flex; align-items: flex-end; gap: 6px;
+  opacity: 0; transform: translateY(8px) scale(0.94); transform-origin: 100% 100%; filter: blur(4px);
+  transition: opacity 180ms var(--ease-out), transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1), filter 240ms var(--ease-out);
+}
+.credit[data-open] .chat { opacity: 1; transform: none; filter: none; }
+.chat__bubble {
+  order: -1; width: max-content; max-width: 232px; min-height: 30px; padding: 8px 12px;
+  border-radius: 14px 14px 4px 14px; white-space: normal; line-height: 1.45;
+  font-size: 12px; font-weight: 500; color: var(--text);
+  background: color-mix(in oklch, var(--surface-2) 88%, var(--accent));
+  box-shadow: inset 0 0 0 1px var(--line), 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 40px rgba(255, 181, 71, 0.08);
+}
+.chat__avatar {
+  display: grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%;
+  font-size: 8px; font-weight: 800; letter-spacing: 0.02em; color: var(--accent-ink);
+  background: conic-gradient(from 200deg, #ffb547, #ff7a59, #b07cff, #4cc9f0, #40d68c, #ffb547);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 14px rgba(255, 181, 71, 0.45);
+}
+.chat__dots { display: inline-flex; gap: 3px; padding: 4px 0; }
+.chat__dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--muted); animation: dot-bounce 900ms ease-in-out infinite; }
+.chat__dots i:nth-child(2) { animation-delay: 120ms; }
+.chat__dots i:nth-child(3) { animation-delay: 240ms; }
+.chat__caret {
+  display: inline-block; width: 2px; height: 1em; margin-left: 1px; vertical-align: -2px;
+  border-radius: 1px; background: var(--accent); animation: caret-blink 700ms steps(1) infinite;
+}
+
+@keyframes hire-ping { 75%, 100% { transform: scale(2.6); opacity: 0; } }
+@keyframes badge-pop { 0% { transform: scale(0); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+@keyframes dot-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-3px); opacity: 1; } }
+@keyframes caret-blink { 50% { opacity: 0; } }
 
 @keyframes credit-enter { from { opacity: 0; transform: translateY(5px); filter: blur(3px); } }
 @keyframes credit-hop {
@@ -312,7 +370,8 @@ kbd {
 }
 @media (prefers-reduced-motion: reduce) {
   .credit__char, .credit:is(:hover, :focus-visible) .credit__char { animation: none; transition: none; }
-  .credit__name::after, .credit__arrow { transition: none; }
+  .credit__name::after, .chat { transition: none; }
+  .chat__dots i, .chat__caret, .hire__dot::after, .hire__badge { animation: none; }
 }
 
 @media (max-width: 720px) {
