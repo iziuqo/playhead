@@ -1,123 +1,233 @@
 /**
- * Credit — the tiny "made by … · hire me" signature in the footer.
+ * Credit — the author's signature, shaped like an incoming chat message.
  *
- * It behaves like a one-line chat with the author:
- * - At rest: "made by Izaias Cavalcanti" and a small "Hire me" chip with a
- *   live green dot. After a while an unread "1" pops on the chip, once.
- * - Hover/focus: the name's letters hop like struck keys, and a chat bubble
- *   rises above it: typing dots first, then the message types itself out,
- *   each word playing the next note of a pentatonic run, so the message
- *   "sounds" like the instrument. It replays on every visit.
- * - Click: opens the contact page in a new tab.
+ * The whole thing is ONE link to the contact page: click or tap it anywhere
+ * and you are there. Everything else is just there to make you want to.
  *
- * The bubble ignores the pointer and sits above the footer, so it never
- * covers anything you are using. Motion lives in styles.css (`.credit`,
- * `.chat`, `.hire`) and honours prefers-reduced-motion (the message then
- * appears whole and silent).
+ * It sits at the top centre (Figma's own toast owns the bottom corner) and
+ * tells a tiny story:
+ *
+ * 1. Arrive: a moment after load a message notification drops in from the
+ *    top: avatar, "Izaias · now", and a teasing preview line that changes
+ *    every few seconds ("psst… 👋", "are you hiring? 👀"). A ring of note
+ *    colours turns around its rim and the avatar nudges now and then, like
+ *    an unread message. A green "Hire me ↗" chip makes the action obvious.
+ * 2. Reveal (mouse hover or keyboard focus): it morphs into the open chat.
+ *    The name turns playable (sweep across the letters to hear them), the
+ *    messages type themselves out one by one with a note per word, and the
+ *    chip becomes a green reply bubble: "Hire me ↗". Touch skips this: a tap
+ *    simply opens the link.
+ * 3. Settle: once seen, the ring calms down and the preview just says the
+ *    author is open to work, so it stays useful without asking for attention.
+ *
+ * Pressing it bursts a ring of note-coloured sparks from the finger or
+ * cursor. Escape folds the chat back. All motion lives in styles.css
+ * (`.island…`) and honours prefers-reduced-motion: messages appear whole.
  */
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { pitchColor } from '../core'
 
+// ---------- Content ----------
 const AUTHOR = 'Izaias Cavalcanti'
-const CONTACT = 'https://portfolio.izaias.xyz/contact'
-const MESSAGE = "Hey 👋 I design and build things like this. Want one? Let's talk →"
-/** Split by code point so the emoji never shows half-typed. */
-const CHARS = [...MESSAGE]
-/** Letters walk up a C major scale so colours glide around the wheel. */
-const SCALE = [0, 2, 4, 5, 7, 9, 11]
-/** Notes for the message's words: a rising major pentatonic. */
+const ROLE = 'Product designer who codes'
+const CONTACT_URL = 'https://portfolio.izaias.xyz/contact'
+const FIRST_NAME = 'Izaias'
+/** The chat, one bubble each. */
+const MESSAGES = ['Hey 👋 I designed and built this piano, from pixels to pitch.', 'Want something this fun? Let’s make it.']
+/** The preview line until the chat has been opened, one after another. */
+const TEASERS = ['psst… 👋', 'I made this piano 🎹', 'are you hiring? 👀'] as const
+/** The preview line once the chat has been opened. */
+const SETTLED = 'Open to work · let’s talk'
+const CTA = 'Hire me'
+
+// ---------- Music ----------
+/** Each message split by code point (so emoji never show half typed), plus where it starts in the whole chat. */
+const BUBBLES = MESSAGES.map((text, i) => ({
+  chars: [...text],
+  start: MESSAGES.slice(0, i).reduce((sum, m) => sum + [...m].length, 0),
+}))
+const TOTAL = BUBBLES.reduce((sum, b) => sum + b.chars.length, 0)
+/** Every character in order, to know where words begin. */
+const CHARS = BUBBLES.flatMap((b) => b.chars)
+const isBubbleStart = (i: number) => BUBBLES.some((b) => b.start === i)
+/** A rising major pentatonic: one note per word of the message. */
 const WORD_NOTES = [76, 79, 81, 84, 86, 88, 91, 93, 96, 98, 100, 103]
-const TYPING_DOTS_MS = 520
-const CHAR_MS = 22
-/** The "1 unread" badge appears once, after this long on the page. */
-const UNREAD_AFTER_MS = 9000
+/** The name's letters climb a C major scale, so they sound and look like keys. */
+const SCALE = [0, 2, 4, 5, 7, 9, 11]
+const letterMidi = (i: number) => 72 + SCALE[i % SCALE.length]! + 12 * Math.floor(i / SCALE.length)
+/** Sparks that burst out when the island is pressed. */
+const SPARKS = 12
+const SPARK_STYLES = Array.from({ length: SPARKS }, (_, i) =>
+  ({ '--a': `${(360 / SPARKS) * i}deg`, '--note': pitchColor(60 + i * 7) }) as CSSProperties,
+)
+
+// ---------- Timing (ms) ----------
+const ARRIVE_AFTER = 1800
+const TEASE_EVERY = 3000
+const HOVER_INTENT = 80
+const LEAVE_GRACE = 280
+/** How long the typing dots show before each bubble. */
+const TYPING_DOTS = 520
+const CHAR_EVERY = 18
+
+type Phase = 'hidden' | 'closed' | 'open'
 
 interface CreditProps {
-  /** Plays one soft note; called as each word of the message appears. */
+  /** Plays one soft note. Called per word as the message types, and per letter of the name. */
   onNote?: (midi: number) => void
 }
 
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 export function Credit({ onNote }: CreditProps) {
-  const [open, setOpen] = useState(false)
+  const [phase, setPhase] = useState<Phase>('hidden')
+  const [seen, setSeen] = useState(false)
+  const [teaser, setTeaser] = useState(0)
   const [shown, setShown] = useState(0) // characters of the message revealed
-  const [unread, setUnread] = useState(false)
-  const read = useRef(false)
+  const [burst, setBurst] = useState({ n: 0, x: 0, y: 0 }) // n bumps to replay the burst at x, y
+  const timer = useRef<number>()
+  const open = phase === 'open'
 
-  // One gentle nudge per visit, unless they already looked.
+  /** Opens or closes after `ms`, replacing any pending hover change. */
+  const settle = (next: 'open' | 'closed', ms: number) => {
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => {
+      if (next === 'open') setSeen(true)
+      setPhase((p) => (p === 'hidden' ? p : next))
+    }, ms)
+  }
+
+  // Arrive, then rotate the teasers until the card has been seen.
   useEffect(() => {
-    const t = window.setTimeout(() => !read.current && setUnread(true), UNREAD_AFTER_MS)
+    const t = window.setTimeout(() => setPhase((p) => (p === 'hidden' ? 'closed' : p)), ARRIVE_AFTER)
     return () => window.clearTimeout(t)
   }, [])
+  useEffect(() => {
+    if (seen || phase !== 'closed') return
+    const t = window.setInterval(() => setTeaser((n) => (n + 1) % TEASERS.length), TEASE_EVERY)
+    return () => window.clearInterval(t)
+  }, [seen, phase])
+  useEffect(() => () => window.clearTimeout(timer.current), [])
 
-  // Type the message out while the bubble is open.
+  // Type the chat, one note per word, with typing dots before each bubble.
+  // Replays on every reveal.
   useEffect(() => {
     if (!open) return setShown(0)
-    if (prefersReducedMotion()) return setShown(CHARS.length)
+    if (prefersReducedMotion()) return setShown(TOTAL)
     let i = 0
     let word = 0
-    let timer = window.setTimeout(function tick() {
-      // A word starts at index 0 or after a space: give it a note.
-      if (i === 0 || CHARS[i - 1] === ' ') onNote?.(WORD_NOTES[word++ % WORD_NOTES.length]!)
+    let t = window.setTimeout(function tick() {
+      if (isBubbleStart(i) || CHARS[i - 1] === ' ') onNote?.(WORD_NOTES[word++ % WORD_NOTES.length]!)
       setShown(++i)
-      if (i < CHARS.length) timer = window.setTimeout(tick, CHAR_MS)
-    }, TYPING_DOTS_MS)
-    return () => window.clearTimeout(timer)
+      if (i < TOTAL) t = window.setTimeout(tick, isBubbleStart(i) ? TYPING_DOTS : CHAR_EVERY)
+    }, TYPING_DOTS)
+    return () => window.clearTimeout(t)
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const show = () => {
-    read.current = true
-    setUnread(false)
-    setOpen(true)
-  }
-  const hide = () => setOpen(false)
-  const typing = open && shown === 0
+  const preview = seen ? SETTLED : TEASERS[teaser]
 
   return (
     <a
-      className="credit"
-      href={CONTACT}
+      className="island"
+      href={CONTACT_URL}
       target="_blank"
       rel="noopener noreferrer"
-      data-open={open || undefined}
-      onPointerEnter={show}
-      onPointerLeave={hide}
-      onFocus={show}
-      onBlur={hide}
-      aria-label={`Made by ${AUTHOR}. Available for hire: opens the contact page in a new tab`}
+      aria-label={`${AUTHOR} made Playhead and is open to work. ${CTA}: opens the contact page in a new tab`}
+      data-phase={phase}
+      data-unread={!seen || undefined}
+      data-typing={(open && shown < TOTAL) || undefined}
+      // Hover reveals for mice only; a tap on touch goes straight to the link.
+      onPointerEnter={(e) => e.pointerType === 'mouse' && settle('open', HOVER_INTENT)}
+      onPointerLeave={(e) => e.pointerType === 'mouse' && settle('closed', LEAVE_GRACE)}
+      onFocus={() => settle('open', 0)}
+      onBlur={() => settle('closed', 0)}
+      onKeyDown={(e) => e.key === 'Escape' && settle('closed', 0)}
+      onPointerDown={(e) => {
+        const box = e.currentTarget.getBoundingClientRect()
+        setBurst((b) => ({ n: b.n + 1, x: e.clientX - box.left, y: e.clientY - box.top }))
+        onNote?.(96)
+      }}
     >
-      <span className="chat" aria-hidden="true">
-        <span className="chat__avatar">IC</span>
-        <span className="chat__bubble">
-          {typing ? (
-            <span className="chat__dots"><i /><i /><i /></span>
+      <span className="island__peek" aria-hidden="true">
+        <span className="island__avatar">IC</span>
+        <span className="island__text">
+          <span className="island__from">
+            {open ? (
+              <span className="island__name" onPointerOver={(e) => playLetter(e.target, onNote)}>
+                {[...AUTHOR].map((char, i) => (
+                  <span
+                    key={i}
+                    className="island__char"
+                    data-midi={char === ' ' ? undefined : letterMidi(i)}
+                    style={{ '--i': i, '--note': pitchColor(letterMidi(i)) } as CSSProperties}
+                  >
+                    {char === ' ' ? '\u00a0' : char}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              FIRST_NAME
+            )}
+            <span className="island__time">now</span>
+          </span>
+          {open ? (
+            <span className="island__role">{ROLE}</span>
           ) : (
-            <>
-              {CHARS.slice(0, shown).join('')}
-              {shown < CHARS.length && <span className="chat__caret" />}
-            </>
+            <span key={preview} className="island__preview">{preview}</span>
           )}
+        </span>
+        {open ? (
+          <span className="island__eq"><i /><i /><i /><i /></span>
+        ) : (
+          <span className="island__chip">{CTA}<Arrow /></span>
+        )}
+      </span>
+
+      <span className="island__body" aria-hidden="true">
+        <span className="island__inner">
+          <span className="island__thread">
+            {BUBBLES.map(({ chars, start }) => {
+              const typed = Math.max(0, Math.min(chars.length, shown - start))
+              const waiting = open && shown === start // dots before this bubble
+              if (!typed && !waiting) return null
+              return (
+                <span key={start} className="island__bubble">
+                  {waiting ? (
+                    <span className="island__dots"><i /><i /><i /></span>
+                  ) : (
+                    <>
+                      {chars.slice(0, typed).join('')}
+                      {typed < chars.length && <span className="island__caret" />}
+                    </>
+                  )}
+                </span>
+              )
+            })}
+          </span>
+          <span className="island__reply">{CTA}<Arrow /></span>
         </span>
       </span>
 
-      <span className="credit__by" aria-hidden="true">made by</span>
-      <span className="credit__name" aria-hidden="true">
-        {[...AUTHOR].map((char, i) => (
-          <span
-            key={i}
-            className="credit__char"
-            style={{ '--i': i, '--note': pitchColor(60 + SCALE[i % SCALE.length]!) } as CSSProperties}
-          >
-            {char === ' ' ? '\u00a0' : char}
-          </span>
-        ))}
-      </span>
-      <span className="hire" aria-hidden="true">
-        <span className="hire__dot" />
-        Hire me
-        {unread && <span className="hire__badge">1</span>}
-      </span>
+      {burst.n > 0 && (
+        <span key={burst.n} className="island__sparks" style={{ left: burst.x, top: burst.y }} aria-hidden="true">
+          {SPARK_STYLES.map((style, i) => <i key={i} style={style} />)}
+        </span>
+      )}
     </a>
   )
+}
+
+/** The "opens elsewhere" arrow; it hops up-right on hover (see styles.css). */
+function Arrow() {
+  return (
+    <svg className="island__arrow" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+      <path d="M2.5 7.5 7.5 2.5M3.5 2.5h4v4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/** Plays the letter under the pointer, if it is one. Delegated, so one handler serves all letters. */
+function playLetter(target: EventTarget, onNote?: (midi: number) => void) {
+  const midi = (target as HTMLElement).dataset?.midi
+  if (midi) onNote?.(Number(midi))
 }

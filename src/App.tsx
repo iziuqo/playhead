@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import {
-  SONGS, dailyNumber, dailyTune, judgementEmoji, noteName,
+  SONGS, dailyNumber, dailyTune, judgementEmoji, noteName, pitchColor,
   type Melody, type PracticeMode, type PracticeResult, type Song, type Timbre,
 } from './core'
 import { Brand } from './ui/Brand'
@@ -28,6 +28,8 @@ const TIMBRES: { id: Timbre; label: string }[] = [
   { id: 'musicbox', label: 'Music box' },
 ]
 const JUDGEMENT_LABEL = { perfect: 'Perfect', good: 'Good', miss: 'Miss' } as const
+/** "Play." spelled as a C major 7 arpeggio: each letter wears its note's colour. */
+const HERO_LETTERS = [...'Play.'].map((char, i) => ({ char, note: pitchColor(60 + [0, 4, 7, 11, 12][i]!) }))
 
 /** Keeps the keyboard range in sync with the window width. */
 function useRange(): [number, number] {
@@ -107,6 +109,7 @@ export function App() {
     <div className="app">
       <header className="bar">
         <Brand subscribe={piano.subscribe} range={range} />
+        <Credit onNote={(midi) => piano.chime([midi])} />
 
         <nav className="segmented" aria-label="Mode">
           {MODES.map((m) => (
@@ -153,7 +156,11 @@ export function App() {
 
             {!showShared && mode === 'play' && (
               <div className="hero" aria-live="polite">
-                <h1 className="hero__title">Play.</h1>
+                <h1 className="hero__title" aria-label="Play.">
+                  {HERO_LETTERS.map(({ char, note }, i) => (
+                    <span key={i} aria-hidden="true" style={{ '--i': i, '--note': note } as CSSProperties}>{char}</span>
+                  ))}
+                </h1>
                 <p className="hero__hint">
                   Use your keyboard: <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd>… for white keys, <kbd>W</kbd> <kbd>E</kbd> <kbd>T</kbd>… for black keys
                 </p>
@@ -249,7 +256,6 @@ export function App() {
           <span><kbd>Space</kbd> sustain</span>
           {mode === 'play' && <span><kbd>R</kbd> record</span>}
           {!piano.ready && <span className="hints__status">Loading piano…</span>}
-          <Credit onNote={(midi) => piano.chime([midi])} />
         </footer>
       </main>
     </div>
