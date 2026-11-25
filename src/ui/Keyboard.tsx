@@ -75,7 +75,7 @@ export function Keyboard({ keys, pressed, guide, baseOctaveC, onPress, onRelease
             aria-label={noteName(midi)}
             aria-pressed={pressed.has(midi)}
             className={`key ${black ? 'key--black' : 'key--white'}${guide?.has(midi) ? ' key--guide' : ''}`}
-            style={{ left: `${x * 100}%`, width: `${width * 100}%`, ['--note' as string]: pitchColor(midi) }}
+            style={{ left: `${x * 100}%`, width: `${width * 100}%`, ['--note' as string]: pitchColor(midi), ['--x' as string]: x }}
             onKeyDown={(e) => e.key === 'Enter' && onPress(midi, 0.8)}
             onKeyUp={(e) => e.key === 'Enter' && onRelease(midi)}
           >

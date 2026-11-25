@@ -191,48 +191,41 @@ kbd {
 /* ---------- Keyboard ---------- */
 .deck { position: relative; }
 
-/* Focus cue: floats on the keyboard's top edge, never takes the pointer. */
-.focus-cue {
-  position: absolute; left: 50%; top: 0; z-index: 5; pointer-events: none;
-  display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px 7px 10px;
-  border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap;
-  color: var(--text); background: rgba(20, 20, 23, 0.82); border: 1px solid var(--line);
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  transform: translate(-50%, -50%);
-  transition: opacity 320ms var(--ease-out), transform 420ms var(--ease-out), background-color 240ms, color 240ms;
+/* ---------- Keyboard power (see FocusCue.tsx) ----------
+   The keys show whether the computer keyboard reaches the piano.
+   - .deck[data-keys='asleep']: keys dimmed and desaturated, letters dark,
+     a standby light breathing along the top edge.
+   - .deck[data-woke]: the moment it turns on. The light flashes across and
+     a wave of each key's note colour runs left to right.
+   Every key carries --x (its left edge, 0 to 1), which staggers the wave. */
+.power {
+  position: absolute; left: 0; right: 0; top: 0; z-index: 4; height: 2px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--accent) 15%, #ffd89a 50%, var(--accent) 85%, transparent);
+  box-shadow: 0 0 12px var(--accent), 0 0 2px var(--accent);
+  opacity: 0; transition: opacity 400ms var(--ease-out);
 }
-.focus-cue__icon {
-  display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
-  font-size: 11px; background: rgba(255, 255, 255, 0.08);
-  transition: background-color 240ms, color 240ms, transform 420ms var(--ease-out);
-}
-.focus-cue[data-state='asleep'] { animation: cue-breathe 2.4s ease-in-out infinite; }
-.focus-cue[data-state='awake'] { color: var(--accent-ink); background: var(--accent); border-color: transparent; }
-.focus-cue[data-state='awake'] .focus-cue__icon { background: rgba(0, 0, 0, 0.14); transform: rotate(360deg) scale(1.1); }
-.focus-cue[data-state='hidden'] { opacity: 0; transform: translate(-50%, -30%) scale(0.92); }
-
-/* While asleep, the computer-key letters on the keys dim a touch more. */
-.deck[data-keys='asleep'] .key__hint { opacity: 0.25; transition: opacity 300ms; }
-
-/* Wake-up: a light sweeps across the keys, left to right. */
-.deck[data-woke] .keyboard::after {
-  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none;
-  background: linear-gradient(100deg, transparent 0%, rgba(255, 181, 71, 0) 35%, rgba(255, 214, 150, 0.55) 50%, rgba(255, 181, 71, 0) 65%, transparent 100%);
-  mix-blend-mode: screen; animation: keys-sweep 900ms var(--ease-out) both;
+.deck[data-woke] .power { animation: power-on 1100ms var(--ease-out); }
+.deck[data-woke] .key::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(180deg, transparent 10%, var(--note));
+  animation: key-wake 800ms var(--ease-out) calc(var(--x) * 500ms) both;
 }
 
-@keyframes cue-breathe {
-  0%, 100% { box-shadow: 0 8px 24px rgba(0,0,0,0.45), 0 0 0 0 rgba(255,181,71,0); }
-  50%      { box-shadow: 0 8px 24px rgba(0,0,0,0.45), 0 0 0 6px rgba(255,181,71,0.12); }
+/* Only where there is a keyboard to wake: touch screens always look on. */
+@media (hover: hover) {
+  .deck[data-keys='asleep'] .key { filter: saturate(0.15) brightness(0.5); }
+  .deck[data-keys='asleep'] .key__hint { opacity: 0; }
+  .deck[data-keys='asleep'] .keyboard { cursor: pointer; }
+  .deck[data-keys='asleep'] .power { animation: standby 2.8s ease-in-out infinite; }
 }
-@keyframes keys-sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 
-@media (hover: none) { .focus-cue { display: none; } }
-@media (prefers-reduced-motion: reduce) {
-  .focus-cue, .focus-cue__icon { animation: none !important; transition: opacity 200ms; }
-  .deck[data-woke] .keyboard::after { display: none; }
+@keyframes standby { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.7; } }
+@keyframes power-on {
+  0%   { opacity: 1; clip-path: inset(0 50% 0 50%); }
+  45%  { opacity: 1; clip-path: inset(0 0 0 0); }
+  100% { opacity: 0; clip-path: inset(0 0 0 0); }
 }
+@keyframes key-wake { 0% { opacity: 0; } 30% { opacity: 0.9; } 100% { opacity: 0; } }
 
 .keyboard {
   position: relative; height: clamp(150px, 26vh, 220px); touch-action: none;
@@ -242,7 +235,8 @@ kbd {
 .key {
   position: absolute; top: 6px; border: 0; padding: 0 0 10px; display: flex; flex-direction: column;
   justify-content: flex-end; align-items: center; gap: 6px;
-  transition: transform 80ms var(--ease-out), box-shadow 180ms var(--ease-out), background 180ms;
+  transition: transform 80ms var(--ease-out), box-shadow 180ms var(--ease-out), background 180ms,
+    filter 450ms var(--ease-out) calc(var(--x) * 500ms); /* powers on/off as a left-to-right wave */
 }
 .key--white {
   bottom: 0; border-radius: 0 0 8px 8px; border-left: 1px solid transparent; border-right: 1px solid transparent; background-clip: padding-box;
@@ -268,7 +262,10 @@ kbd {
   content: ''; position: absolute; left: 22%; right: 22%; top: 10px; height: 4px; border-radius: 4px;
   background: var(--note); box-shadow: 0 0 12px var(--note); animation: pulse 0.8s infinite;
 }
-.key__hint { min-width: 0; height: auto; padding: 0; border: 0; background: none; font-size: 11px; font-weight: 600; opacity: 0.45; }
+.key__hint {
+  min-width: 0; height: auto; padding: 0; border: 0; background: none; font-size: 11px; font-weight: 600; opacity: 0.45;
+  transition: opacity 300ms var(--ease-out) calc(var(--x) * 500ms);
+}
 .key--white .key__hint { color: #3a3832; }
 .key--black .key__hint { color: var(--text); }
 .key__octave { font-size: 9px; font-weight: 600; color: #8b8679; }
@@ -288,7 +285,7 @@ kbd {
 .chat {
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --glide: cubic-bezier(0.22, 1, 0.36, 1);
-  --head: 48px;
+  --head: 40px;
   --online: #3ddc84;
   --cta: #3ddc84;
   position: fixed; top: 76px; right: 32px; z-index: 40;
@@ -324,9 +321,9 @@ kbd {
 
 /* The badge pops a beat after the head lands, and leaves once read. */
 .chat__badge {
-  place-self: start end; translate: 4px -4px;
-  display: grid; place-items: center; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 10px;
-  background: #ff4d5e; color: #fff; font: 700 11px/1 var(--font); font-variant-numeric: tabular-nums;
+  place-self: start end; translate: 5px -5px;
+  display: grid; place-items: center; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px;
+  background: #ff4d5e; color: #fff; font: 700 10px/1 var(--font); font-variant-numeric: tabular-nums;
   box-shadow: 0 0 0 2px var(--bg), 0 3px 8px rgba(255, 77, 94, 0.45);
   scale: 0; transition: scale 300ms var(--glide);
 }

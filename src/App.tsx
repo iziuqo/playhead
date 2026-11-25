@@ -240,7 +240,7 @@ export function App() {
         </section>
 
         <div className="deck" data-keys={focus.focused ? 'live' : 'asleep'} data-woke={focus.woke || undefined}>
-          <FocusCue focused={focus.focused} woke={focus.woke} />
+          <FocusCue focused={focus.focused} />
           <Keyboard
             keys={keys}
             pressed={piano.pressed}

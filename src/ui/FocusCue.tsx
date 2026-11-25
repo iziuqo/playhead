@@ -1,24 +1,32 @@
 /**
- * FocusCue — a small pill that floats on the keyboard's top edge.
+ * FocusCue — the keyboard's power light.
  *
- * - Page not focused: "Click to play with your keyboard", softly breathing.
- *   It never blocks anything: it ignores the pointer, so the click that
- *   dismisses it lands on whatever is under it (usually a key, which plays).
- * - Focus arrives: it flips to "Keyboard on" with a check, then fades away.
- * - Focused and settled: hidden.
- * Hidden on touch-only devices, where there is no keyboard to focus.
+ * There is no toast. The keys themselves say whether the computer keyboard
+ * reaches the piano (all the styling lives in styles.css, "Keyboard power"):
+ *
+ * - Off (the page can't hear the keyboard): the keys dim to a powered-down
+ *   grey, their letter labels go dark, and a thin amber standby light
+ *   breathes along the top edge, like a sleeping device. Any click wakes it.
+ * - Turning on (focus arrives): the light flashes across, and a wave of note
+ *   colour runs over the keys, left to right, as each one comes back to life.
+ * - On: the keys look like normal; nothing else shows.
+ *
+ * This component renders the light, plus a visually hidden status line so
+ * screen readers hear the same thing. The state comes from the parent's
+ * `.deck[data-keys]` and `[data-woke]` attributes (see useKeyboardFocus).
+ * On touch-only devices, where there is no keyboard, the keys never dim.
  */
 interface FocusCueProps {
   focused: boolean
-  woke: boolean
 }
 
-export function FocusCue({ focused, woke }: FocusCueProps) {
-  const state = !focused ? 'asleep' : woke ? 'awake' : 'hidden'
+export function FocusCue({ focused }: FocusCueProps) {
   return (
-    <div className="focus-cue" data-state={state} role="status" aria-live="polite">
-      <span className="focus-cue__icon" aria-hidden="true">{focused ? '✓' : '⌨'}</span>
-      {focused ? 'Keyboard on — play away' : 'Click to play with your keyboard'}
-    </div>
+    <>
+      <span className="power" aria-hidden="true" />
+      <p className="sr-only" role="status">
+        {focused ? 'Keyboard on' : 'Click the piano to play it with your computer keyboard'}
+      </p>
+    </>
   )
 }

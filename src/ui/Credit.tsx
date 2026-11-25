@@ -146,7 +146,7 @@ export function Credit({ subscribe, onNote }: CreditProps) {
         tabIndex={shown ? 0 : -1}
         onClick={toggle}
       >
-        <img className="chat__photo" src={AVATAR_URL} alt="" width={48} height={48} />
+        <img className="chat__photo" src={AVATAR_URL} alt="" width={40} height={40} />
         <svg className="chat__x" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
           <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" />
         </svg>

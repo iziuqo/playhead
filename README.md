@@ -41,7 +41,7 @@ src/
     useGame.ts     Runs one Learn/Daily round
     Keyboard.tsx   The on-screen piano (accessible buttons, glissando, multi-touch)
     Brand.tsx      Logo: a mini piano whose playhead follows the notes you play
-    FocusCue.tsx   Pill that asks for a click when the page can't hear the keyboard
+    FocusCue.tsx   Keyboard power light: keys dim when the page can't hear the keyboard, light up when it can
     useKeyboardFocus.ts  Auto-focus + focus detection (Figma runs the app in an iframe)
     Credit.tsx     Author's chat head: a photo + badge, top right; the chat starts when it's clicked
     avatar.ts      The author's photo, inlined as a tiny WebP (works in Figma Make, no asset files)
