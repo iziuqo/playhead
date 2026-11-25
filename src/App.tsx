@@ -109,7 +109,7 @@ export function App() {
     <div className="app">
       <header className="bar">
         <Brand subscribe={piano.subscribe} range={range} />
-        <Credit onNote={(midi) => piano.chime([midi])} />
+        <Credit subscribe={piano.subscribe} onNote={(midi) => piano.chime([midi])} />
 
         <nav className="segmented" aria-label="Mode">
           {MODES.map((m) => (

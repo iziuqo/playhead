@@ -277,175 +277,127 @@ kbd {
 .hints kbd { margin-right: 4px; }
 .hints__status { margin-left: auto; }
 
-/* ---------- Credit: the chat-message "island" (see Credit.tsx) ----------
-   A message notification pinned top-centre that morphs into the open chat.
-   - data-phase: hidden → closed (arrives with a spring drop) → open.
-   - data-unread: a ring of note colours turns around the rim and the avatar
-     nudges now and then, like a message waiting to be read.
-   - data-typing: the little equaliser dances while the message types.
-   The island is a single link, so every state says the same thing: the green
-   "Hire me ↗" (chip when closed, reply bubble when open) is the action.
-   Width and corner radius morph on a springy curve; the card's height opens
-   with the 0fr → 1fr grid trick, so nothing is measured in JS. */
-@property --ring { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
-.island {
-  --spring: cubic-bezier(0.34, 1.4, 0.5, 1);
-  --rim: rgba(255, 255, 255, 0.1);
-  position: fixed; top: 12px; left: 50%; z-index: 40;
-  display: block; width: 304px; translate: -50% 0;
-  color: var(--text); text-decoration: none; cursor: pointer;
-  border: 1px solid transparent; border-radius: 28px;
-  background:
-    linear-gradient(#050506, #050506) padding-box,
-    conic-gradient(from var(--ring), var(--rim), var(--rim)) border-box;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+/* ---------- Credit: the author's note (see Credit.tsx) ----------
+   A chat notification in the top-right corner that opens into the chat.
+   - data-shown: it has arrived (after a few seconds of playing).
+   - data-open: the chat is unfolded; the × appears in the header.
+   - data-unread: a soft dot breathes on the avatar until it is opened.
+   Motion is deliberately calm: one gentle curve (--glide) for everything,
+   no overshoot, nothing that moves while the visitor is not looking at it
+   except the unread dot. The height unfolds with the 0fr → 1fr grid trick,
+   so nothing is measured in JS. */
+.note {
+  --glide: cubic-bezier(0.22, 1, 0.36, 1);
+  --note-bg: rgba(16, 16, 19, 0.86);
+  position: fixed; top: 78px; right: 32px; z-index: 40;
+  width: 292px; overflow: hidden;
+  border-radius: 20px; background: var(--note-bg);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 18px 50px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  opacity: 0; translate: 16px 0; scale: 0.98; visibility: hidden;
   transition:
-    width 560ms var(--spring), border-radius 560ms var(--spring),
-    translate 700ms var(--spring), opacity 260ms var(--ease-out), box-shadow 400ms var(--ease-out),
-    scale 200ms var(--spring);
+    opacity 500ms var(--glide), translate 700ms var(--glide), scale 700ms var(--glide),
+    width 600ms var(--glide), box-shadow 400ms var(--glide), visibility 0s 700ms;
 }
-.island:active { scale: 0.97; }
-.island:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.island[data-phase='hidden'] { translate: -50% -160%; opacity: 0; pointer-events: none; }
-.island[data-unread] {
-  background:
-    linear-gradient(#050506, #050506) padding-box,
-    conic-gradient(from var(--ring), #ffb547, #ff6b8b, #b07cff, #4cc9f0, #40d68c, #ffb547) border-box;
-  animation: ring-turn 4s linear infinite;
-}
-.island[data-phase='open'] {
-  width: min(360px, calc(100vw - 24px)); border-radius: 28px;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65), 0 0 60px rgba(255, 181, 71, 0.08);
-}
+.note[data-shown] { opacity: 1; translate: 0; scale: 1; visibility: visible; transition-delay: 0s; }
+.note[data-open] { width: min(348px, calc(100vw - 24px)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 28px 80px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.35); }
 
-/* The pill row, always visible. */
-.island__peek { display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 9px; }
-.island[data-phase='open'] .island__peek { padding-right: 16px; }
-.island__avatar {
+/* The header: the whole notification is one button. */
+.note__head {
+  display: flex; align-items: center; gap: 11px; width: 100%; padding: 11px 14px 11px 11px;
+  border: 0; background: none; text-align: left; border-radius: 20px;
+  transition: background-color 300ms var(--glide);
+}
+.note:not([data-open]) .note__head:hover { background: rgba(255, 255, 255, 0.04); }
+.note__head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.note__avatar {
   position: relative; display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 50%;
   font-size: 12px; font-weight: 800; letter-spacing: 0.02em; color: var(--accent-ink);
-  background: conic-gradient(from 200deg, #ffb547, #ff6b8b, #b07cff, #4cc9f0, #40d68c, #ffb547);
-  transition: scale 400ms var(--spring);
+  background: conic-gradient(from 210deg, #ffb547, #ff7a8a, #b58cff, #5ccdf0, #4fd99a, #ffb547);
 }
-.island__avatar::after { /* unread / online dot */
-  content: ''; position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; border-radius: 50%;
-  background: #40d68c; box-shadow: 0 0 0 2px #050506;
+.note__avatar::after { /* unread → online */
+  content: ''; position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%;
+  background: #40d68c; box-shadow: 0 0 0 2px #121215;
+  transition: background-color 400ms var(--glide);
 }
-.island[data-unread] .island__avatar::after { background: var(--accent); animation: dot-ping 2s ease-out infinite; }
-.island[data-unread] .island__avatar { animation: nudge 6s var(--ease-out) 1.2s infinite; }
-.island[data-phase='open'] .island__avatar { scale: 1.08; }
+.note[data-unread] .note__avatar::after { background: var(--accent); animation: note-breathe 2.6s ease-in-out infinite; }
 
-/* Sender and preview, like a message notification. */
-.island__text { flex: 1; min-width: 0; display: grid; gap: 1px; line-height: 1.3; }
-.island__from { display: flex; align-items: baseline; gap: 6px; font-size: 13.5px; font-weight: 650; letter-spacing: -0.01em; }
-.island__time { font-size: 11px; font-weight: 500; color: var(--muted); }
-.island__preview, .island__role { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; color: var(--muted); }
-.island[data-unread] .island__preview { color: var(--text); }
-.island__preview { animation: teaser-in 460ms var(--spring) both; }
-.island__role { display: flex; align-items: center; gap: 6px; animation: teaser-in 460ms var(--spring) both; }
-.island__role::before { /* "open to work" */
-  content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%; background: #40d68c; box-shadow: 0 0 8px #40d68c;
+.note__text { flex: 1; min-width: 0; display: grid; gap: 2px; line-height: 1.3; }
+.note__from { display: flex; align-items: baseline; gap: 6px; font-size: 13.5px; font-weight: 650; letter-spacing: -0.01em; color: var(--text); }
+.note__time { font-size: 11px; font-weight: 500; color: var(--muted); }
+.note__sub {
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; color: var(--muted);
+  animation: note-fade 500ms var(--glide) both;
 }
+.note[data-unread] .note__sub { color: color-mix(in oklch, var(--text) 86%, transparent); }
 
-/* The name, open state: each letter is a key. Hover plays it (Credit.tsx). */
-.island__name { display: inline-flex; }
-.island__char {
-  display: inline-block; color: var(--text);
-  animation: char-in 480ms var(--spring) both; animation-delay: calc(var(--i) * 18ms);
-  transition: color 600ms var(--ease-out);
+/* The ×: only there while the chat is open. */
+.note__icon {
+  display: grid; place-items: center; flex: none; width: 0; height: 26px; margin-left: -11px; margin-right: -4px; border-radius: 50%;
+  color: var(--muted); background: rgba(255, 255, 255, 0.06);
+  opacity: 0; scale: 0.6; rotate: -90deg;
+  transition: width 600ms var(--glide), margin 600ms var(--glide), opacity 300ms var(--glide), scale 500ms var(--glide), rotate 500ms var(--glide), background-color 200ms, color 200ms;
 }
-.island__char:hover { color: var(--note); animation: char-hop 380ms var(--spring); transition-duration: 0ms; text-shadow: 0 0 12px var(--note); }
+.note[data-open] .note__icon { width: 26px; margin-left: 0; opacity: 1; scale: 1; rotate: 0deg; }
+.note[data-open] .note__head:hover .note__icon { color: var(--text); background: rgba(255, 255, 255, 0.12); }
+.note__close { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
 
-/* Tiny equaliser: idles gently, dances while the message types. */
-.island__eq { display: flex; align-items: center; gap: 2px; height: 14px; flex: none; }
-.island__eq i { width: 3px; height: 100%; border-radius: 2px; background: var(--accent); transform-origin: 50% 50%; animation: eq 1.4s ease-in-out infinite; }
-.island__eq i:nth-child(2) { animation-delay: -0.4s; background: #ff6b8b; }
-.island__eq i:nth-child(3) { animation-delay: -0.8s; background: #4cc9f0; }
-.island__eq i:nth-child(4) { animation-delay: -1.1s; background: #40d68c; }
-.island[data-typing] .island__eq i { animation-duration: 0.45s; }
-
-/* The action, closed: a green chip with a shine that sweeps by now and then. */
-.island__chip {
-  position: relative; overflow: hidden; flex: none; display: inline-flex; align-items: center; gap: 4px;
-  height: 28px; padding: 0 10px 0 12px; border-radius: 999px;
-  font-size: 12px; font-weight: 700; color: #04160c; background: #40d68c;
-  box-shadow: 0 0 16px rgba(64, 214, 140, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  animation: chip-in 500ms var(--spring) both;
-}
-.island__chip::after {
-  content: ''; position: absolute; inset: 0;
-  background: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%) 200% 0 / 250% 100% no-repeat;
-  animation: shine 4.5s var(--ease-out) 2.5s infinite;
-}
-.island__arrow { transition: translate 320ms var(--spring); }
-.island:hover .island__arrow, .island:focus-visible .island__arrow { translate: 1.5px -1.5px; }
-
-/* The card. */
-.island__body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 520ms var(--spring); }
-.island[data-phase='open'] .island__body { grid-template-rows: 1fr; }
-.island__inner {
+/* The chat. */
+.note__body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 600ms var(--glide); }
+.note[data-open] .note__body { grid-template-rows: 1fr; }
+.note__inner {
   min-height: 0; overflow: hidden; padding: 0 12px;
-  opacity: 0; translate: 0 -6px; transition: opacity 200ms, translate 400ms var(--spring), padding 400ms var(--spring);
+  opacity: 0; transition: opacity 250ms var(--glide), padding 600ms var(--glide);
 }
-.island[data-phase='open'] .island__inner { padding: 2px 12px 12px; opacity: 1; translate: 0; transition-delay: 120ms; }
+.note[data-open] .note__inner { padding: 0 12px 12px; opacity: 1; transition-delay: 0s, 0s; transition-duration: 500ms, 600ms; }
 
-/* The chat: incoming grey bubbles pop in one by one (Credit.tsx types them),
-   then the green reply bubble, which is the action, waits bottom-right. */
-.island__thread { display: grid; justify-items: start; align-content: start; gap: 4px; min-height: 96px; }
-.island__bubble {
-  display: block; max-width: 86%; padding: 8px 12px; border-radius: 18px 18px 18px 6px;
-  font-size: 13px; line-height: 1.45; color: var(--text); background: #222227;
-  transform-origin: 0 100%; animation: bubble-in 380ms var(--spring) both;
+.note__thread { display: grid; justify-items: start; align-content: start; gap: 4px; min-height: 96px; margin: 2px 0 0; }
+.note__bubble {
+  display: block; max-width: 88%; padding: 9px 13px; border-radius: 18px 18px 18px 6px;
+  font-size: 13px; line-height: 1.45; color: var(--text); background: rgba(255, 255, 255, 0.07);
+  transform-origin: 0 100%; animation: note-bubble 450ms var(--glide) both;
 }
-.island__bubble + .island__bubble { border-top-left-radius: 6px; }
-.island__dots { display: inline-flex; gap: 4px; padding: 5px 2px; }
-.island__dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: dot-bounce 900ms ease-in-out infinite; }
-.island__dots i:nth-child(2) { animation-delay: 120ms; }
-.island__dots i:nth-child(3) { animation-delay: 240ms; }
-.island__caret {
-  display: inline-block; width: 2px; height: 1em; margin-left: 1px; vertical-align: -2px;
-  border-radius: 1px; background: var(--accent); animation: caret-blink 700ms steps(1) infinite;
-}
-.island__reply {
-  display: flex; align-items: center; gap: 5px; width: fit-content; height: 38px; margin: 8px 0 0 auto; padding: 0 16px 0 18px;
-  border-radius: 19px 19px 6px 19px; font-size: 13.5px; font-weight: 700; color: #04160c; background: #40d68c;
-  box-shadow: 0 8px 24px rgba(64, 214, 140, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  transform-origin: 100% 100%; transition: box-shadow 300ms var(--ease-out), filter 200ms, scale 300ms var(--spring);
-}
-.island:hover .island__reply { scale: 1.04; filter: brightness(1.06); box-shadow: 0 12px 32px rgba(64, 214, 140, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.4); }
+.note__bubble + .note__bubble { border-top-left-radius: 6px; }
+.note__dots { display: inline-flex; gap: 4px; padding: 5px 1px; }
+.note__dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: note-dot 1.1s ease-in-out infinite; }
+.note__dots i:nth-child(2) { animation-delay: 150ms; }
+.note__dots i:nth-child(3) { animation-delay: 300ms; }
 
-/* Sparks: a ring of note-coloured dots bursts out when the island is pressed. */
-.island__sparks { position: absolute; z-index: 5; pointer-events: none; } /* left/top: the press point */
-.island__sparks i {
-  position: absolute; width: 8px; height: 8px; margin: -4px; border-radius: 50%; background: var(--note);
-  box-shadow: 0 0 8px var(--note); animation: spark 720ms var(--ease-out) forwards;
+/* The one action: a green reply bubble, bottom-right, like your own answer. */
+.note__reply {
+  position: relative; display: flex; align-items: center; gap: 6px; width: fit-content; height: 38px;
+  margin: 10px 0 0 auto; padding: 0 16px 0 18px; border-radius: 19px 19px 6px 19px;
+  font-size: 13.5px; font-weight: 700; color: #04160c; text-decoration: none; background: #40d68c;
+  box-shadow: 0 8px 24px rgba(64, 214, 140, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transform-origin: 100% 100%;
+  transition: scale 400ms var(--glide), box-shadow 400ms var(--glide), filter 200ms;
+}
+.note__reply:hover { scale: 1.03; filter: brightness(1.05); box-shadow: 0 12px 32px rgba(64, 214, 140, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.4); }
+.note__reply:active { scale: 0.97; }
+.note__reply:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.note__arrow { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transition: translate 400ms var(--glide); }
+.note__reply:hover .note__arrow { translate: 1.5px -1.5px; }
+
+/* Sparks: a ring of note-coloured dots bursts from the press point. */
+.note__sparks { position: absolute; pointer-events: none; }
+.note__sparks i {
+  position: absolute; width: 7px; height: 7px; margin: -3.5px; border-radius: 50%; background: var(--note);
+  box-shadow: 0 0 8px var(--note); animation: note-spark 700ms var(--ease-out) forwards;
 }
 
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-@keyframes ring-turn { to { --ring: 360deg; } }
-@keyframes chip-in { from { opacity: 0; scale: 0.6; } }
-@keyframes shine { 0% { background-position: 200% 0; } 30%, 100% { background-position: -100% 0; } }
-@keyframes nudge {
-  0%, 88%, 100% { rotate: 0deg; }
-  91% { rotate: -14deg; } 94% { rotate: 12deg; } 97% { rotate: -6deg; }
-}
-@keyframes dot-ping { 0% { box-shadow: 0 0 0 2px #050506, 0 0 0 2px rgba(255, 181, 71, 0.6); } 100% { box-shadow: 0 0 0 2px #050506, 0 0 0 8px rgba(255, 181, 71, 0); } }
-@keyframes bubble-in { from { opacity: 0; scale: 0.6; } }
-@keyframes teaser-in { from { opacity: 0; transform: translateY(70%); filter: blur(3px); } }
-@keyframes char-in { from { opacity: 0; transform: translateY(6px) scale(0.8); } }
-@keyframes char-hop { 40% { transform: translateY(-5px) scale(1.18); } }
-@keyframes eq { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
-@keyframes dot-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-3px); opacity: 1; } }
-@keyframes caret-blink { 50% { opacity: 0; } }
-@keyframes spark {
+@keyframes note-breathe { 50% { box-shadow: 0 0 0 2px #121215, 0 0 0 5px rgba(255, 181, 71, 0.18); } }
+@keyframes note-fade { from { opacity: 0; translate: 0 3px; } }
+@keyframes note-bubble { from { opacity: 0; scale: 0.92; translate: 0 4px; } }
+@keyframes note-dot { 0%, 60%, 100% { opacity: 0.35; translate: 0 0; } 30% { opacity: 1; translate: 0 -2px; } }
+@keyframes note-spark {
   0%   { transform: rotate(var(--a)) translateX(0) scale(0.4); }
-  35%  { transform: rotate(var(--a)) translateX(38px) scale(1.15); opacity: 1; }
-  100% { transform: rotate(var(--a)) translateX(60px) scale(0); opacity: 0; }
+  35%  { transform: rotate(var(--a)) translateX(30px) scale(1.1); opacity: 1; }
+  100% { transform: rotate(var(--a)) translateX(48px) scale(0); opacity: 0; }
 }
-/* Narrower screens: the header is full, so the island floats just inside
-   the top of the stage instead (the header wraps to two rows below 720px). */
-@media (max-width: 980px) { .island { top: 80px; } }
-@media (max-width: 720px) { .island { top: 123px; } }
+/* Below 720px the header wraps to two rows, so the note sits a little lower. */
+@media (max-width: 720px) { .note { top: 122px; right: 16px; } }
 
 @media (max-width: 720px) {
   .bar { flex-wrap: wrap; gap: 10px; padding: 12px; }
