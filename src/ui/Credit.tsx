@@ -1,116 +1,112 @@
 /**
- * Credit — the author's note, shaped like a chat notification.
+ * Credit — the author, as a chat head in the top-right corner.
  *
- * It stays out of the way until it has earned a look:
+ * The flow, beat by beat:
  *
- * 1. Wait: nothing shows until the visitor has been playing for a few
+ * 1. Wait. Nothing shows until the visitor has been playing for a few
  *    seconds (counted from their first note).
- * 2. Notify: a small notification glides into the top-right corner:
- *    avatar, "Izaias · now" and one preview line. A soft dot breathes
- *    beside it like an unread message. Nothing else moves.
- * 3. Chat: clicking it opens the conversation in place. The messages type
- *    themselves out, one note per word, then a green reply bubble,
- *    "Hire me ↗", links to the contact page. It is the only link.
- * 4. Close: the × (or Escape, or a click outside) folds the chat back into
- *    the notification. It stays there, quiet, until the visitor wants it.
+ * 2. Knock. A small round photo pops in with a "1" badge, like a message
+ *    you haven't opened. Every few seconds it gives a tiny nudge, nothing more.
+ * 3. Talk. Only when it's clicked does the chat begin: "typing…" dots, then
+ *    a message, then dots again, paced by each message's length the way a
+ *    person types. Each arriving message plays one soft note. If the
+ *    visitor has played a lot, the greeting notices.
+ * 4. Ask. Once the last message lands, and not before, the "Hire me" button
+ *    rises in. It is the only link (the contact page, in a new tab).
+ * 5. Rest. The chat head (now a ×), Escape or a click outside folds it
+ *    away. A closed chat keeps its place: reopening resumes where it
+ *    stopped, and a finished chat reopens instantly, already read.
  *
- * Accessibility: the notification is a real disclosure button
- * (aria-expanded); the chat is a labelled region whose controls are
- * unreachable while folded (inert). Motion lives in styles.css (`.note…`)
- * and honours prefers-reduced-motion: the chat then appears whole.
+ * Accessibility: the chat head is a disclosure button (aria-expanded); the
+ * panel is a labelled dialog that is inert while closed, and new messages
+ * are announced politely. Motion lives in styles.css (`.chat…`) and honours
+ * prefers-reduced-motion: the whole chat then appears at once.
  */
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { pitchColor } from '../core'
+import { useEffect, useRef, useState } from 'react'
+import { AVATAR_URL } from './avatar'
 import type { Piano } from './usePiano'
 
 // ---------- Content ----------
 const AUTHOR = 'Izaias Cavalcanti'
-const FIRST_NAME = 'Izaias'
-const ROLE = 'Product designer who codes'
+const STATUS = 'Product designer · online'
 const CONTACT_URL = 'https://portfolio.izaias.xyz/contact'
-/** The preview line before and after the chat has been read. */
-const PREVIEW = { unread: 'Enjoying it? I made this 🎹', read: 'Open to work · let’s talk' }
-/** The chat, one bubble each. */
-const MESSAGES = ['Hey 👋 I designed and built this piano, from pixels to pitch.', 'Want something this fun for your product? Let’s make it.']
 const CTA = 'Hire me'
+/** Played at least this many notes? The greeting compliments it. */
+const KEEN_PLAYER_NOTES = 24
 
-// ---------- Typing ----------
-/** Each message split by code point (so emoji never show half typed), plus where it starts in the whole chat. */
-const BUBBLES = MESSAGES.map((text, i) => ({
-  chars: [...text],
-  start: MESSAGES.slice(0, i).reduce((sum, m) => sum + [...m].length, 0),
-}))
-const TOTAL = BUBBLES.reduce((sum, b) => sum + b.chars.length, 0)
-const CHARS = BUBBLES.flatMap((b) => b.chars)
-const isBubbleStart = (i: number) => BUBBLES.some((b) => b.start === i)
-/** A soft rising major pentatonic: one note per word as the chat types. */
-const WORD_NOTES = [76, 79, 81, 84, 86, 88, 91, 93, 96, 98, 100, 103]
-/** Sparks that burst from the reply bubble when it is pressed. */
-const SPARKS = 12
-const SPARK_STYLES = Array.from({ length: SPARKS }, (_, i) =>
-  ({ '--a': `${(360 / SPARKS) * i}deg`, '--note': pitchColor(60 + i * 7) }) as CSSProperties,
-)
+/** The script, written when the chat opens so it can react to the visitor. */
+const script = (notesPlayed: number) => [
+  notesPlayed >= KEEN_PLAYER_NOTES ? 'Hey, nice playing 🎹' : 'Hey 👋',
+  'I’m Izaias. I designed and built Playhead, every pixel and every note.',
+  'If you want something this fun in your product, I’d love to help.',
+]
 
 // ---------- Timing (ms) ----------
-/** How long the visitor plays before the notification appears. */
-const PLAY_BEFORE_NOTIFY = 5000
-/** Typing dots before each bubble, and the pace of the characters. */
-const TYPING_DOTS = 600
-const CHAR_EVERY = 22
+/** How long the visitor plays before the chat head appears. */
+const PLAY_BEFORE_KNOCK = 5000
+/** "Typing" time for a message: a base, plus a little per character, capped. */
+const typingTime = (text: string) => Math.min(1700, 550 + text.length * 16)
+/** A breath between one message landing and the next "typing…". */
+const BETWEEN_MESSAGES = 350
+/** One soft rising note per message: a C major triad, an octave up. */
+const MESSAGE_NOTES = [84, 88, 91]
 
 interface CreditProps {
-  /** The piano's note stream: the notification waits for the visitor to play. */
+  /** The piano's note stream: the chat head waits for the visitor to play. */
   subscribe: Piano['subscribe']
-  /** Plays one soft note; called per word as the chat types. */
+  /** Plays one soft note; called as each message arrives. */
   onNote?: (midi: number) => void
 }
 
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 export function Credit({ subscribe, onNote }: CreditProps) {
-  const [shown, setShown] = useState(false) // notification has arrived
+  const [shown, setShown] = useState(false) // the chat head has arrived
   const [open, setOpen] = useState(false)
-  const [read, setRead] = useState(false)
-  const [typed, setTyped] = useState(0) // characters of the chat revealed
-  const [burst, setBurst] = useState({ n: 0, x: 0, y: 0 }) // n bumps to replay the burst at x, y
+  const [messages, setMessages] = useState<string[]>([]) // written on first open
+  const [delivered, setDelivered] = useState(0) // messages already on screen
+  const [typing, setTyping] = useState(false)
+  const notesPlayed = useRef(0)
   const root = useRef<HTMLDivElement>(null)
-  const chat = useRef<HTMLDivElement>(null)
-  const trigger = useRef<HTMLButtonElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
+  const head = useRef<HTMLButtonElement>(null)
 
-  // 1. Arrive a few seconds after the first note the visitor plays.
+  const started = messages.length > 0
+  const done = started && delivered === messages.length
+
+  // 1. Count notes; knock a few seconds after the first one.
   useEffect(() => {
-    if (shown) return
     let timer = 0
-    const stop = subscribe(({ type }) => {
-      if (type === 'on' && !timer) timer = window.setTimeout(() => setShown(true), PLAY_BEFORE_NOTIFY)
+    return subscribe(({ type }) => {
+      if (type !== 'on') return
+      notesPlayed.current += 1
+      if (!timer) timer = window.setTimeout(() => setShown(true), PLAY_BEFORE_KNOCK)
     })
-    return () => {
-      stop()
-      window.clearTimeout(timer)
-    }
-  }, [subscribe, shown])
+  }, [subscribe])
 
-  // 3. Type the chat, one note per word, with typing dots before each bubble.
+  // 3. While open, deliver the next message after its "typing" time.
   useEffect(() => {
-    if (!open) return setTyped(0)
-    if (prefersReducedMotion()) return setTyped(TOTAL)
-    let i = 0
-    let word = 0
-    let t = window.setTimeout(function tick() {
-      if (isBubbleStart(i) || CHARS[i - 1] === ' ') onNote?.(WORD_NOTES[word++ % WORD_NOTES.length]!)
-      setTyped(++i)
-      if (i < TOTAL) t = window.setTimeout(tick, isBubbleStart(i) ? TYPING_DOTS : CHAR_EVERY)
-    }, TYPING_DOTS)
-    return () => window.clearTimeout(t)
-  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (!open || !started || done) return setTyping(false)
+    if (prefersReducedMotion()) return setDelivered(messages.length)
+    const text = messages[delivered]!
+    let timer = window.setTimeout(() => {
+      setTyping(true)
+      timer = window.setTimeout(() => {
+        setTyping(false)
+        setDelivered((n) => n + 1)
+        onNote?.(MESSAGE_NOTES[delivered % MESSAGE_NOTES.length]!)
+      }, typingTime(text))
+    }, delivered === 0 ? 450 : BETWEEN_MESSAGES)
+    return () => window.clearTimeout(timer)
+  }, [open, started, done, delivered, messages]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 4. While open: Escape or a press outside folds it back.
+  // 5. While open: Escape or a press outside closes.
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       setOpen(false)
-      trigger.current?.focus()
+      head.current?.focus()
     }
     const onPress = (e: PointerEvent) => !root.current?.contains(e.target as Node) && setOpen(false)
     window.addEventListener('keydown', onKey)
@@ -121,91 +117,71 @@ export function Credit({ subscribe, onNote }: CreditProps) {
     }
   }, [open])
 
-  // A folded chat must not be reachable by Tab or screen readers.
+  // A closed panel must not be reachable by Tab or screen readers.
   useEffect(() => {
-    chat.current?.toggleAttribute('inert', !open)
+    panel.current?.toggleAttribute('inert', !open)
   }, [open])
 
   const toggle = () => {
-    setRead(true)
+    if (!started) setMessages(script(notesPlayed.current))
     setOpen((o) => !o)
   }
 
   return (
     <div
       ref={root}
-      className="note"
+      className="chat"
       data-shown={shown || undefined}
       data-open={open || undefined}
-      data-unread={!read || undefined}
-      data-typing={(open && typed < TOTAL) || undefined}
+      data-unread={!started || undefined}
       aria-hidden={!shown || undefined}
     >
       <button
-        ref={trigger}
+        ref={head}
         type="button"
-        className="note__head"
+        className="chat__head"
         aria-expanded={open}
-        aria-controls="note-chat"
-        aria-label={open ? 'Close the chat' : `New message from ${AUTHOR}. Open the chat`}
+        aria-controls="chat-panel"
+        aria-label={open ? 'Close the chat' : started ? `Chat with ${AUTHOR}` : `1 new message from ${AUTHOR}`}
         tabIndex={shown ? 0 : -1}
         onClick={toggle}
       >
-        <span className="note__avatar" aria-hidden="true">IC</span>
-        <span className="note__text" aria-hidden="true">
-          <span className="note__from">
-            {open ? AUTHOR : FIRST_NAME}
-            <span className="note__time">now</span>
-          </span>
-          <span key={String(open)} className="note__sub">{open ? ROLE : read ? PREVIEW.read : PREVIEW.unread}</span>
-        </span>
-        <span className="note__icon" aria-hidden="true">
-          <svg width="12" height="12" viewBox="0 0 12 12">
-            <path className="note__close" d="M3 3l6 6M9 3l-6 6" />
-          </svg>
-        </span>
+        <img className="chat__photo" src={AVATAR_URL} alt="" width={48} height={48} />
+        <svg className="chat__x" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+          <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" />
+        </svg>
+        <span className="chat__badge" aria-hidden="true">1</span>
       </button>
 
-      <div ref={chat} id="note-chat" className="note__body" role="region" aria-label={`Chat with ${AUTHOR}`}>
-        <div className="note__inner">
-          <p className="note__thread" aria-label={MESSAGES.join(' ')}>
-            {BUBBLES.map(({ chars, start }) => {
-              const shownChars = Math.max(0, Math.min(chars.length, typed - start))
-              const waiting = open && typed === start // typing dots before this bubble
-              if (!shownChars && !waiting) return null
-              return (
-                <span key={start} className="note__bubble" aria-hidden="true">
-                  {waiting ? (
-                    <span className="note__dots"><i /><i /><i /></span>
-                  ) : (
-                    chars.slice(0, shownChars).join('')
-                  )}
-                </span>
-              )
-            })}
-          </p>
-          <a
-            className="note__reply"
-            href={CONTACT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onPointerDown={(e) => {
-              const box = e.currentTarget.getBoundingClientRect()
-              setBurst((b) => ({ n: b.n + 1, x: e.clientX - box.left, y: e.clientY - box.top }))
-            }}
-          >
+      <div ref={panel} id="chat-panel" className="chat__panel" role="dialog" aria-label={`Chat with ${AUTHOR}`}>
+        <header className="chat__top">
+          <img className="chat__photo chat__photo--small" src={AVATAR_URL} alt="" width={32} height={32} />
+          <span className="chat__who">
+            <strong>{AUTHOR}</strong>
+            <span className="chat__status">{STATUS}</span>
+          </span>
+        </header>
+
+        <div className="chat__thread" aria-live="polite">
+          {messages.slice(0, delivered).map((text) => (
+            <p key={text} className="chat__bubble">{text}</p>
+          ))}
+          {typing && (
+            <p className="chat__bubble chat__bubble--typing" aria-label={`${AUTHOR} is typing`}>
+              <i /><i /><i />
+            </p>
+          )}
+        </div>
+
+        {done && (
+          <a className="chat__cta" href={CONTACT_URL} target="_blank" rel="noopener noreferrer">
             {CTA}
-            <svg className="note__arrow" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+            <svg className="chat__arrow" width="11" height="11" viewBox="0 0 10 10" aria-hidden="true">
               <path d="M2.5 7.5 7.5 2.5M3.5 2.5h4v4" />
             </svg>
             <span className="sr-only"> (opens the contact page in a new tab)</span>
-            {burst.n > 0 && (
-              <span key={burst.n} className="note__sparks" style={{ left: burst.x, top: burst.y }} aria-hidden="true">
-                {SPARK_STYLES.map((style, i) => <i key={i} style={style} />)}
-              </span>
-            )}
           </a>
-        </div>
+        )}
       </div>
     </div>
   )

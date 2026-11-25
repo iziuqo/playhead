@@ -43,7 +43,8 @@ src/
     Brand.tsx      Logo: a mini piano whose playhead follows the notes you play
     FocusCue.tsx   Pill that asks for a click when the page can't hear the keyboard
     useKeyboardFocus.ts  Auto-focus + focus detection (Figma runs the app in an iframe)
-    Credit.tsx     Author's note: a top-right chat notification that appears after a little playing
+    Credit.tsx     Author's chat head: a photo + badge, top right; the chat starts when it's clicked
+    avatar.ts      The author's photo, inlined as a tiny WebP (works in Figma Make, no asset files)
     Stage.tsx      The <canvas> above the keys: rising trails and falling notes
     layout.ts      Key geometry shared by Keyboard and Stage
     share.ts / streak.ts / samples.ts
